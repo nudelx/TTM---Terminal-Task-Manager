@@ -2,8 +2,9 @@
 
 const blessed = require('neo-blessed');
 
-const INVERSE_ON = '\x1b[7m';
-const INVERSE_OFF = '\x1b[27m';
+function escapeTags(text) {
+  return String(text).replace(/[{}]/g, (c) => (c === '{' ? '{open}' : '{close}'));
+}
 
 function createTextEditor({
   parent,
@@ -37,7 +38,7 @@ function createTextEditor({
     keyable: true,
     scrollable: true,
     alwaysScroll: true,
-    tags: false,
+    tags: true,
   });
 
   function clampCol() {
@@ -49,21 +50,27 @@ function createTextEditor({
     return box.screen && box.screen.focused === box;
   }
 
+  function ensureCursorVisible() {
+    if (typeof box.scrollTo !== 'function') return;
+    const visibleRows = Math.max(1, (box.height || 0) - 2);
+    const top = box.childBase || 0;
+    if (row < top) box.scrollTo(row);
+    else if (row >= top + visibleRows) box.scrollTo(row - visibleRows + 1);
+  }
+
   function render() {
     if (!isFocused()) {
-      box.setContent(lines.join('\n'));
+      box.setContent(lines.map(escapeTags).join('\n'));
     } else {
       const out = lines.map((line, i) => {
-        if (i !== row) return line;
+        if (i !== row) return escapeTags(line);
         const at = col < line.length ? line[col] : ' ';
         const before = line.slice(0, col);
         const after = col < line.length ? line.slice(col + 1) : '';
-        return `${before}${INVERSE_ON}${at}${INVERSE_OFF}${after}`;
+        return `${escapeTags(before)}{inverse}${escapeTags(at)}{/inverse}${escapeTags(after)}`;
       });
       box.setContent(out.join('\n'));
-      if (typeof box.scrollTo === 'function') {
-        box.scrollTo(row);
-      }
+      ensureCursorVisible();
     }
     box.screen.render();
   }
@@ -80,10 +87,10 @@ function createTextEditor({
     if (!isFocused() || !key) return;
     const name = key.name;
 
-    // After keyTranslation, Ctrl+Enter arrives as a literal \n which blessed
-    // parses as name='enter'. Ctrl+J (always \n) lands here too. Insert
-    // a newline in both cases.
-    if (name === 'enter') {
+    // \n arrives as name='linefeed' (blessed renames it from 'enter' for \n
+    // sequences). This is what Ctrl+J sends natively and what our key
+    // translator emits for Ctrl+Enter. Insert a newline.
+    if (name === 'linefeed') {
       insertNewline();
       render();
       return;
@@ -93,8 +100,9 @@ function createTextEditor({
       return;
     }
 
-    // Plain Enter (\r) submits/saves.
-    if (name === 'return') {
+    // Plain Enter (\r) submits/saves. blessed emits both 'return' (original)
+    // and a synthetic 'enter' event for \r; both should save.
+    if (name === 'return' || name === 'enter') {
       if (typeof onSubmit === 'function') onSubmit();
       return;
     }

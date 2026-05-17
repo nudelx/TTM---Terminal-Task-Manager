@@ -1,32 +1,72 @@
 'use strict';
 
 // blessed/neo-blessed doesn't parse xterm's "modifyOtherKeys" format 2
-// sequences (CSI 27;<modifier>;<keycode>~). Without a translation, terminals
-// that emit these end up inserting the raw digits as if they were typed.
+// sequences (CSI 27;<modifier>;<keycode>~) nor the CSI u format
+// (CSI <keycode>;<modifier>u). Without translation, the digits get
+// re-emitted as if typed.
 //
-// We monkey-patch the TTY input stream's emit() so that 'data' events are
-// rewritten BEFORE any downstream listener (readline keypress parser, blessed
-// program data emitter, etc.) sees them.
+// We intercept incoming data BEFORE blessed's readline parser sees it,
+// substituting Ctrl+Enter sequences with a literal \n. blessed parses \n
+// as name='linefeed', which TextEditor uses as the newline trigger.
 const TRANSLATIONS = [
-  // Ctrl+Enter  -> \n  (which blessed parses as name='enter')
-  { pattern: /\x1b\[27;5;13[~^$]/g, replacement: '\n' },
+  { pattern: /\x1b\[27[;:]5[;:]13[~^$]/g, replacement: '\n' },
+  { pattern: /\x1b\[13;5u/g, replacement: '\n' },
 ];
+
+function transform(buf) {
+  if (!Buffer.isBuffer(buf)) return buf;
+  const before = buf.toString('utf8');
+  let after = before;
+  for (const { pattern, replacement } of TRANSLATIONS) {
+    after = after.replace(pattern, replacement);
+  }
+  return after === before ? buf : Buffer.from(after, 'utf8');
+}
 
 function installKeyTranslation(screen) {
   const input = screen && screen.program && screen.program.input;
   if (!input || input.__ttmTranslated) return;
   input.__ttmTranslated = true;
 
-  const origEmit = input.emit.bind(input);
-  input.emit = function (event, data, ...rest) {
-    if (event === 'data' && Buffer.isBuffer(data)) {
-      let s = data.toString('utf8');
-      for (const { pattern, replacement } of TRANSLATIONS) {
-        s = s.replace(pattern, replacement);
-      }
-      data = Buffer.from(s, 'utf8');
+  const forwarded = input.listeners('data').slice();
+  input.removeAllListeners('data');
+
+  function ttmDataListener(buf) {
+    const data = transform(buf);
+    for (const fn of forwarded) {
+      try { fn.call(input, data); } catch (_) { /* swallow */ }
     }
-    return origEmit(event, data, ...rest);
+  }
+  input.on('data', ttmDataListener);
+
+  const origOn = input.on.bind(input);
+  const origPrepend = input.prependListener.bind(input);
+  const origRemove = input.removeListener.bind(input);
+
+  function addData(event, fn) {
+    if (event === 'data' && fn !== ttmDataListener) {
+      forwarded.push(fn);
+      return input;
+    }
+    return origOn(event, fn);
+  }
+  function prependData(event, fn) {
+    if (event === 'data' && fn !== ttmDataListener) {
+      forwarded.unshift(fn);
+      return input;
+    }
+    return origPrepend(event, fn);
+  }
+  input.on = addData;
+  input.addListener = addData;
+  input.prependListener = prependData;
+  input.removeListener = function (event, fn) {
+    if (event === 'data' && fn !== ttmDataListener) {
+      const i = forwarded.indexOf(fn);
+      if (i >= 0) forwarded.splice(i, 1);
+      return input;
+    }
+    return origRemove(event, fn);
   };
 }
 
