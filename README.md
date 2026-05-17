@@ -1,4 +1,4 @@
-# ttm
+# ttm - Terminal Task Manager
 
 Terminal task manager with a lazygit-style UI. Plain Node.js (no TypeScript, no classes), single dependency (`neo-blessed`).
 
