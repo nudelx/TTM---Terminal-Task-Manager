@@ -1,0 +1,19 @@
+{
+  "border": { "fg": "cyan" },
+  "borderFocused": { "fg": "yellow" },
+  "selected": { "fg": "yellow", "bold": true },
+  "help": { "fg": "gray" },
+  "dialogBorder": { "fg": "magenta" },
+  "inputFocus": { "bg": "blue", "fg": "white" },
+  "input": { "bg": "black", "fg": "white" },
+  "status": {
+    "todo": "yellow",
+    "doing": "magenta",
+    "done": "green"
+  },
+  "priority": {
+    "low": "gray",
+    "med": "white",
+    "high": "red"
+  }
+}

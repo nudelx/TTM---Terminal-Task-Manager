@@ -1,0 +1,15 @@
+{
+  "quit": ["q"],
+  "forceQuit": ["C-c"],
+  "navigateDown": ["j", "down"],
+  "navigateUp": ["k", "up"],
+  "add": ["a"],
+  "edit": ["e", "enter"],
+  "delete": ["d", "x"],
+  "toggleStatus": ["space"],
+  "cyclePriority": ["p"],
+  "save": ["C-s"],
+  "cancel": ["escape"],
+  "next": ["tab"],
+  "prev": ["S-tab"]
+}

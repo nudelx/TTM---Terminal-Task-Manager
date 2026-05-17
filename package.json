@@ -1,0 +1,19 @@
+{
+  "name": "ttm",
+  "version": "0.1.0",
+  "description": "Terminal task manager with a lazygit-style UI",
+  "bin": {
+    "ttm": "./bin/ttm.js"
+  },
+  "main": "src/App.js",
+  "scripts": {
+    "start": "node bin/ttm.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "neo-blessed": "^0.2.0"
+  },
+  "license": "MIT"
+}
