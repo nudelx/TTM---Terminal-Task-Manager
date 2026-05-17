@@ -1,6 +1,7 @@
 'use strict';
 
 const blessed = require('neo-blessed');
+const E = require('./editorState');
 
 function escapeTags(text) {
   return String(text).replace(/[{}]/g, (c) => (c === '{' ? '{open}' : '{close}'));
@@ -17,9 +18,7 @@ function createTextEditor({
   onExitUp,
   onExitDown,
 }) {
-  let lines = [''];
-  let row = 0;
-  let col = 0;
+  let state = E.fromString('');
 
   const box = blessed.box({
     parent,
@@ -41,115 +40,75 @@ function createTextEditor({
     tags: true,
   });
 
-  function clampCol() {
-    if (col < 0) col = 0;
-    if (col > lines[row].length) col = lines[row].length;
-  }
-
-  function isFocused() {
-    return box.screen && box.screen.focused === box;
-  }
+  const isFocused = () => box.screen && box.screen.focused === box;
 
   function ensureCursorVisible() {
     if (typeof box.scrollTo !== 'function') return;
     const visibleRows = Math.max(1, (box.height || 0) - 2);
     const top = box.childBase || 0;
-    if (row < top) box.scrollTo(row);
-    else if (row >= top + visibleRows) box.scrollTo(row - visibleRows + 1);
+    if (state.row < top) box.scrollTo(state.row);
+    else if (state.row >= top + visibleRows) box.scrollTo(state.row - visibleRows + 1);
+  }
+
+  function renderCursorRow(line) {
+    const at = state.col < line.length ? line[state.col] : ' ';
+    const before = line.slice(0, state.col);
+    const after = state.col < line.length ? line.slice(state.col + 1) : '';
+    return `${escapeTags(before)}{inverse}${escapeTags(at)}{/inverse}${escapeTags(after)}`;
   }
 
   function render() {
     if (!isFocused()) {
-      box.setContent(lines.map(escapeTags).join('\n'));
+      box.setContent(state.lines.map(escapeTags).join('\n'));
     } else {
-      const out = lines.map((line, i) => {
-        if (i !== row) return escapeTags(line);
-        const at = col < line.length ? line[col] : ' ';
-        const before = line.slice(0, col);
-        const after = col < line.length ? line.slice(col + 1) : '';
-        return `${escapeTags(before)}{inverse}${escapeTags(at)}{/inverse}${escapeTags(after)}`;
-      });
+      const out = state.lines.map((line, i) => (i === state.row ? renderCursorRow(line) : escapeTags(line)));
       box.setContent(out.join('\n'));
       ensureCursorVisible();
     }
     box.screen.render();
   }
 
-  function insertNewline() {
-    const cur = lines[row];
-    lines[row] = cur.slice(0, col);
-    lines.splice(row + 1, 0, cur.slice(col));
-    row++;
-    col = 0;
+  // Map a blessed key event to a state-transition function (or null for no-op).
+  function keyToTransition(ch, key) {
+    const name = key.name;
+    // Ctrl+Enter / Ctrl+J arrive as 'linefeed' after keyTranslation; newline.
+    if (name === 'linefeed') return (s) => E.insertNewline(s);
+    // Other ctrl combos and escape bubble to screen-level handlers.
+    if (key.ctrl || name === 'escape') return null;
+    // Plain Enter saves — caller does it via onSubmit, not via state.
+    if (name === 'return' || name === 'enter') return 'submit';
+
+    if (name === 'left') return E.moveLeft;
+    if (name === 'right') return E.moveRight;
+    if (name === 'up') return 'up';
+    if (name === 'down') return 'down';
+    if (name === 'home') return E.moveHome;
+    if (name === 'end') return E.moveEnd;
+    if (name === 'backspace') return E.backspace;
+    if (name === 'delete') return E.del;
+    if (ch && ch.length === 1 && ch >= ' ') return (s) => E.insertChar(s, ch);
+    return null;
   }
 
   function handleKey(ch, key) {
     if (!isFocused() || !key) return;
-    const name = key.name;
-
-    // \n arrives as name='linefeed' (blessed renames it from 'enter' for \n
-    // sequences). This is what Ctrl+J sends natively and what our key
-    // translator emits for Ctrl+Enter. Insert a newline.
-    if (name === 'linefeed') {
-      insertNewline();
-      render();
-      return;
-    }
-
-    if (key.ctrl || name === 'escape') {
-      return;
-    }
-
-    // Plain Enter (\r) submits/saves. blessed emits both 'return' (original)
-    // and a synthetic 'enter' event for \r; both should save.
-    if (name === 'return' || name === 'enter') {
+    const transition = keyToTransition(ch, key);
+    if (transition === null) return;
+    if (transition === 'submit') {
       if (typeof onSubmit === 'function') onSubmit();
       return;
     }
-
-    if (name === 'left') {
-      if (col > 0) col--;
-      else if (row > 0) { row--; col = lines[row].length; }
-    } else if (name === 'right') {
-      if (col < lines[row].length) col++;
-      else if (row < lines.length - 1) { row++; col = 0; }
-    } else if (name === 'up') {
-      if (row > 0) { row--; clampCol(); }
-      else if (typeof onExitUp === 'function') { onExitUp(); return; }
-      else return;
-    } else if (name === 'down') {
-      if (row < lines.length - 1) { row++; clampCol(); }
-      else if (typeof onExitDown === 'function') { onExitDown(); return; }
-      else return;
-    } else if (name === 'home') {
-      col = 0;
-    } else if (name === 'end') {
-      col = lines[row].length;
-    } else if (name === 'backspace') {
-      if (col > 0) {
-        lines[row] = lines[row].slice(0, col - 1) + lines[row].slice(col);
-        col--;
-      } else if (row > 0) {
-        const prevLen = lines[row - 1].length;
-        lines[row - 1] = lines[row - 1] + lines[row];
-        lines.splice(row, 1);
-        row--;
-        col = prevLen;
-      }
-    } else if (name === 'delete') {
-      if (col < lines[row].length) {
-        lines[row] = lines[row].slice(0, col) + lines[row].slice(col + 1);
-      } else if (row < lines.length - 1) {
-        lines[row] = lines[row] + lines[row + 1];
-        lines.splice(row + 1, 1);
-      }
-    } else if (ch && ch.length === 1 && ch >= ' ') {
-      lines[row] = lines[row].slice(0, col) + ch + lines[row].slice(col);
-      col++;
+    if (transition === 'up') {
+      const next = E.moveUp(state);
+      if (next === null) { if (typeof onExitUp === 'function') onExitUp(); return; }
+      state = next;
+    } else if (transition === 'down') {
+      const next = E.moveDown(state);
+      if (next === null) { if (typeof onExitDown === 'function') onExitDown(); return; }
+      state = next;
     } else {
-      return;
+      state = transition(state);
     }
-
     render();
   }
 
@@ -157,24 +116,11 @@ function createTextEditor({
   box.on('focus', render);
   box.on('blur', render);
 
-  function getValue() {
-    return lines.join('\n');
-  }
-
-  function setValue(v) {
-    const str = typeof v === 'string' ? v : '';
-    lines = str.split('\n');
-    if (lines.length === 0) lines = [''];
-    row = 0;
-    col = 0;
-    render();
-  }
-
   return {
     box,
     focus: () => box.focus(),
-    getValue,
-    setValue,
+    getValue: () => E.toString(state),
+    setValue: (v) => { state = E.fromString(v); render(); },
   };
 }
 

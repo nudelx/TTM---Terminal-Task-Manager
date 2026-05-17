@@ -3,12 +3,25 @@
 const blessed = require('neo-blessed');
 const { STATUSES, PRIORITIES } = require('../domain/Task');
 const { createTextEditor } = require('./widgets/TextEditor');
+const { createFocusRing } = require('./widgets/focusRing');
 
-function createEditDialog({ parent, theme, keys }) {
+// blessed textbox/textarea set screen.grabKeys = true during input, which
+// suppresses screen-level .key() handlers. Adding a key to screen.ignoreLocked
+// lets it bypass that filter so our dialog shortcuts still fire while editing.
+function unlockKeys(screen, keys, actions) {
+  screen.ignoreLocked = screen.ignoreLocked || [];
+  for (const action of actions) {
+    for (const k of keys.keysFor(action)) {
+      if (!screen.ignoreLocked.includes(k)) screen.ignoreLocked.push(k);
+    }
+  }
+}
+
+function createEditDialog({ screen, theme, keys }) {
   let pendingResolve = null;
 
   const container = blessed.box({
-    parent,
+    parent: screen,
     label: ' Task ',
     top: 'center',
     left: 'center',
@@ -21,6 +34,12 @@ function createEditDialog({ parent, theme, keys }) {
     tags: true,
   });
 
+  const inputStyle = {
+    fg: 'white',
+    border: theme.get('border'),
+    focus: { border: theme.get('inputBorderFocus') },
+  };
+
   function makeLabel(top, text) {
     blessed.text({
       parent: container,
@@ -31,12 +50,6 @@ function createEditDialog({ parent, theme, keys }) {
       style: { bold: true },
     });
   }
-
-  const inputStyle = {
-    fg: 'white',
-    border: theme.get('border'),
-    focus: { border: theme.get('inputBorderFocus') },
-  };
 
   function makeTextbox(top, width) {
     const t = blessed.textbox({
@@ -49,9 +62,9 @@ function createEditDialog({ parent, theme, keys }) {
       border: { type: 'line' },
       style: inputStyle,
     });
-    t.on('focus', () => {
-      if (!t._reading) t.readInput();
-    });
+    // Manually start readInput on focus so blessed doesn't rewindFocus on Enter
+    // (rewindFocus would fight our explicit field-advance chain).
+    t.on('focus', () => { if (!t._reading) t.readInput(); });
     return t;
   }
 
@@ -66,9 +79,7 @@ function createEditDialog({ parent, theme, keys }) {
 
   makeLabel(15, 'Notes  {gray-fg}(C-enter = newline, arrows = move){/}');
 
-  function isOpen() {
-    return !container.hidden;
-  }
+  const isOpen = () => !container.hidden;
 
   function close(result) {
     if (container.hidden) return;
@@ -109,48 +120,29 @@ function createEditDialog({ parent, theme, keys }) {
     content: '{cyan-fg}[enter]{/} save / next   {cyan-fg}[C-enter]{/} newline   {cyan-fg}[tab]{/} field   {cyan-fg}[esc]{/} cancel',
   });
 
-  const singleLineFields = [titleInput, statusInput, priorityInput];
-  singleLineFields.forEach((el, i) => {
+  // Enter on single-line fields advances to the next; from priority, go to notes.
+  const singleLine = [titleInput, statusInput, priorityInput];
+  singleLine.forEach((el, i) => {
     el.on('submit', () => {
-      const next = singleLineFields[i + 1];
+      const next = singleLine[i + 1];
       if (next) next.focus();
       else notesEditor.focus();
     });
   });
 
-  const focusOrder = [titleInput, statusInput, priorityInput, notesEditor.box];
+  const focusRing = createFocusRing([
+    titleInput,
+    statusInput,
+    priorityInput,
+    notesEditor.box,
+  ]);
 
-  function focusAt(idx) {
-    const n = focusOrder.length;
-    focusOrder[((idx % n) + n) % n].focus();
-  }
+  unlockKeys(screen, keys, ['save', 'cancel', 'next', 'prev']);
 
-  function currentFocusIndex() {
-    return focusOrder.indexOf(container.screen.focused);
-  }
-
-  // blessed textbox/textarea set screen.grabKeys = true during input, which
-  // suppresses screen-level .key() handlers. ignoreLocked lets specific keys
-  // bypass that filter so our dialog shortcuts still work while editing.
-  parent.ignoreLocked = parent.ignoreLocked || [];
-  ['save', 'cancel', 'next', 'prev'].forEach((action) => {
-    keys.keysFor(action).forEach((k) => {
-      if (!parent.ignoreLocked.includes(k)) parent.ignoreLocked.push(k);
-    });
-  });
-
-  keys.bind(parent, 'save', () => { if (isOpen()) close(collect()); });
-  keys.bind(parent, 'cancel', () => { if (isOpen()) close(null); });
-  keys.bind(parent, 'next', () => {
-    if (!isOpen()) return;
-    const i = currentFocusIndex();
-    focusAt(i < 0 ? 0 : i + 1);
-  });
-  keys.bind(parent, 'prev', () => {
-    if (!isOpen()) return;
-    const i = currentFocusIndex();
-    focusAt(i < 0 ? focusOrder.length - 1 : i - 1);
-  });
+  keys.bind(screen, 'save', () => { if (isOpen()) close(collect()); });
+  keys.bind(screen, 'cancel', () => { if (isOpen()) close(null); });
+  keys.bind(screen, 'next', () => { if (isOpen()) focusRing.next(screen); });
+  keys.bind(screen, 'prev', () => { if (isOpen()) focusRing.prev(screen); });
 
   function open(task) {
     titleInput.setValue(task ? task.title : '');
@@ -161,9 +153,7 @@ function createEditDialog({ parent, theme, keys }) {
     container.setFront();
     titleInput.focus();
     container.screen.render();
-    return new Promise((resolve) => {
-      pendingResolve = resolve;
-    });
+    return new Promise((resolve) => { pendingResolve = resolve; });
   }
 
   return { open, isOpen };

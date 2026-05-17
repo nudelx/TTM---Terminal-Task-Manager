@@ -7,12 +7,7 @@ const ConfigLoader = require('./config/ConfigLoader');
 const { createTheme } = require('./config/Theme');
 const { createKeybindings } = require('./config/Keybindings');
 const { createJsonTaskStore } = require('./storage/JsonTaskStore');
-const {
-  createTask,
-  updateTask,
-  nextStatus,
-  nextPriority,
-} = require('./domain/Task');
+const T = require('./domain/tasksReducer');
 
 const { createTaskListPanel } = require('./ui/TaskListPanel');
 const { createDetailPanel } = require('./ui/DetailPanel');
@@ -44,7 +39,7 @@ function createApp() {
   });
   createHelpBar({ parent: screen, theme, keys });
 
-  const editDialog = createEditDialog({ parent: screen, theme, keys });
+  const editDialog = createEditDialog({ screen, theme, keys });
   const confirmDialog = createConfirmDialog({ parent: screen, theme });
 
   function persist(nextTasks) {
@@ -53,62 +48,51 @@ function createApp() {
     list.setTasks(tasks);
   }
 
-  function replaceAt(idx, updated) {
-    persist(tasks.map((t, i) => (i === idx ? updated : t)));
+  // Run an async modal flow with the modalOpen guard and focus-restore baked in.
+  async function withModal(fn) {
+    modalOpen = true;
+    try {
+      return await fn();
+    } finally {
+      modalOpen = false;
+      list.focus();
+    }
   }
 
   async function handleAdd() {
-    modalOpen = true;
-    const data = await editDialog.open(null);
-    modalOpen = false;
-    list.focus();
+    const data = await withModal(() => editDialog.open(null));
     if (!data || !data.title.trim()) return;
-    persist([...tasks, createTask(data)]);
+    persist(T.add(tasks, data));
   }
 
   async function handleEdit() {
-    const task = list.selectedTask();
     const idx = list.selectedIndex();
-    if (!task || idx < 0) return;
-    modalOpen = true;
-    const data = await editDialog.open(task);
-    modalOpen = false;
-    list.focus();
+    const task = list.selectedTask();
+    if (!task) return;
+    const data = await withModal(() => editDialog.open(task));
     if (!data) return;
-    replaceAt(idx, updateTask(task, data));
+    persist(T.update(tasks, idx, data));
   }
 
   async function handleDelete() {
-    const task = list.selectedTask();
     const idx = list.selectedIndex();
-    if (!task || idx < 0) return;
-    modalOpen = true;
-    const ok = await confirmDialog.open(`Delete "${task.title}"?`);
-    modalOpen = false;
-    list.focus();
+    const task = list.selectedTask();
+    if (!task) return;
+    const ok = await withModal(() => confirmDialog.open(`Delete "${task.title}"?`));
     if (!ok) return;
-    persist(tasks.filter((_, i) => i !== idx));
+    persist(T.remove(tasks, idx));
   }
 
   function handleToggleStatus() {
-    const task = list.selectedTask();
-    const idx = list.selectedIndex();
-    if (!task || idx < 0) return;
-    replaceAt(idx, updateTask(task, { status: nextStatus(task.status) }));
+    persist(T.cycleStatus(tasks, list.selectedIndex()));
   }
 
   function handleCyclePriority() {
-    const task = list.selectedTask();
-    const idx = list.selectedIndex();
-    if (!task || idx < 0) return;
-    replaceAt(idx, updateTask(task, { priority: nextPriority(task.priority) }));
+    persist(T.cyclePriority(tasks, list.selectedIndex()));
   }
 
   function guard(fn) {
-    return () => {
-      if (modalOpen) return;
-      fn();
-    };
+    return () => { if (!modalOpen) fn(); };
   }
 
   function bindKeys() {
@@ -116,9 +100,9 @@ function createApp() {
     keys.bind(screen, 'quit', guard(() => process.exit(0)));
     keys.bind(screen, 'navigateDown', guard(() => list.moveDown()));
     keys.bind(screen, 'navigateUp', guard(() => list.moveUp()));
-    keys.bind(screen, 'add', guard(() => { handleAdd(); }));
-    keys.bind(screen, 'edit', guard(() => { handleEdit(); }));
-    keys.bind(screen, 'delete', guard(() => { handleDelete(); }));
+    keys.bind(screen, 'add', guard(handleAdd));
+    keys.bind(screen, 'edit', guard(handleEdit));
+    keys.bind(screen, 'delete', guard(handleDelete));
     keys.bind(screen, 'toggleStatus', guard(handleToggleStatus));
     keys.bind(screen, 'cyclePriority', guard(handleCyclePriority));
   }
