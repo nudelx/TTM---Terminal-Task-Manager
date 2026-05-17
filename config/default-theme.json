@@ -4,8 +4,7 @@
   "selected": { "fg": "yellow", "bold": true },
   "help": { "fg": "gray" },
   "dialogBorder": { "fg": "magenta" },
-  "inputFocus": { "bg": "blue", "fg": "white" },
-  "input": { "bg": "black", "fg": "white" },
+  "inputBorderFocus": { "fg": "blue" },
   "status": {
     "todo": "yellow",
     "doing": "magenta",

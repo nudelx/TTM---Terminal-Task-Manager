@@ -2,12 +2,13 @@
 
 const blessed = require('neo-blessed');
 
-function formatRow(task, theme) {
+function formatRow(task, number, theme) {
   const statusColor = theme.statusColor(task.status);
   const prioColor = theme.priorityColor(task.priority);
+  const num = String(number).padEnd(3);
   const status = `{${statusColor}-fg}${task.status.padEnd(5)}{/}`;
   const prio = `{${prioColor}-fg}${task.priority[0].toUpperCase()}{/}`;
-  return `${status} ${prio}  ${task.title}`;
+  return `${num} ${status} ${prio}  ${task.title}`;
 }
 
 function createTaskListPanel({ parent, theme, onSelect }) {
@@ -15,7 +16,7 @@ function createTaskListPanel({ parent, theme, onSelect }) {
 
   const box = blessed.list({
     parent,
-    label: ' Tasks ',
+    label: ' Tasks (0) ',
     top: 0,
     left: 0,
     width: '40%',
@@ -33,24 +34,32 @@ function createTaskListPanel({ parent, theme, onSelect }) {
   });
 
   function emitSelected() {
-    if (typeof onSelect === 'function') {
-      onSelect(tasks[box.selected] || null);
+    if (typeof onSelect !== 'function') return;
+    if (tasks.length === 0) {
+      onSelect(null, null);
+      return;
     }
+    const idx = box.selected;
+    onSelect(tasks[idx] || null, idx + 1);
   }
 
   box.on('select item', emitSelected);
 
+  function updateLabel() {
+    box.setLabel(` Tasks (${tasks.length}) `);
+  }
+
   function setTasks(next) {
     tasks = Array.isArray(next) ? next : [];
-    box.setItems(tasks.map((t) => formatRow(t, theme)));
+    box.setItems(tasks.map((t, i) => formatRow(t, i + 1, theme)));
+    updateLabel();
     if (tasks.length === 0) {
       box.select(0);
-      emitSelected();
     } else {
       const idx = Math.min(Math.max(box.selected || 0, 0), tasks.length - 1);
       box.select(idx);
-      emitSelected();
     }
+    emitSelected();
     box.screen.render();
   }
 
@@ -58,7 +67,8 @@ function createTaskListPanel({ parent, theme, onSelect }) {
     box,
     setTasks,
     selectedTask: () => tasks[box.selected] || null,
-    selectedIndex: () => box.selected,
+    selectedIndex: () => (tasks.length === 0 ? -1 : box.selected),
+    selectedNumber: () => (tasks.length === 0 ? null : box.selected + 1),
     moveDown: () => { box.down(1); box.screen.render(); },
     moveUp: () => { box.up(1); box.screen.render(); },
     focus: () => box.focus(),

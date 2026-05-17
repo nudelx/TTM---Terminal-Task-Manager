@@ -1,19 +1,21 @@
 'use strict';
 
 const blessed = require('neo-blessed');
+const { formatDateWithRelative } = require('../util/time');
 
-function renderContent(task, theme) {
+function renderContent(task, number, theme) {
   if (!task) {
     return '{gray-fg}No task selected{/}';
   }
   const statusColor = theme.statusColor(task.status);
   const prioColor = theme.priorityColor(task.priority);
   return [
+    `{bold}Number{/}   : ${number}`,
     `{bold}Title{/}    : ${task.title}`,
     `{bold}Status{/}   : {${statusColor}-fg}${task.status}{/}`,
     `{bold}Priority{/} : {${prioColor}-fg}${task.priority}{/}`,
-    `{bold}Created{/}  : ${task.createdAt}`,
-    `{bold}Updated{/}  : ${task.updatedAt}`,
+    `{bold}Created{/}  : ${formatDateWithRelative(task.createdAt)}`,
+    `{bold}Updated{/}  : ${formatDateWithRelative(task.updatedAt)}`,
     '',
     '{bold}Notes{/}',
     task.notes ? task.notes : '{gray-fg}(none){/}',
@@ -34,8 +36,8 @@ function createDetailPanel({ parent, theme }) {
     padding: { left: 1, right: 1 },
   });
 
-  function show(task) {
-    box.setContent(renderContent(task, theme));
+  function show(task, number) {
+    box.setContent(renderContent(task, number, theme));
     box.screen.render();
   }
 

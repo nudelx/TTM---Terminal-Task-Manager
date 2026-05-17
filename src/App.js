@@ -19,6 +19,7 @@ const { createDetailPanel } = require('./ui/DetailPanel');
 const { createHelpBar } = require('./ui/HelpBar');
 const { createEditDialog } = require('./ui/EditDialog');
 const { createConfirmDialog } = require('./ui/ConfirmDialog');
+const { installKeyTranslation } = require('./util/keyTranslation');
 
 function createApp() {
   const theme = createTheme(ConfigLoader.load('theme'));
@@ -33,12 +34,13 @@ function createApp() {
     title: 'ttm — terminal task manager',
     fullUnicode: true,
   });
+  installKeyTranslation(screen);
 
   const detail = createDetailPanel({ parent: screen, theme });
   const list = createTaskListPanel({
     parent: screen,
     theme,
-    onSelect: (task) => detail.show(task),
+    onSelect: (task, number) => detail.show(task, number),
   });
   createHelpBar({ parent: screen, theme, keys });
 
@@ -51,8 +53,8 @@ function createApp() {
     list.setTasks(tasks);
   }
 
-  function replaceTask(updated) {
-    persist(tasks.map((t) => (t.id === updated.id ? updated : t)));
+  function replaceAt(idx, updated) {
+    persist(tasks.map((t, i) => (i === idx ? updated : t)));
   }
 
   async function handleAdd() {
@@ -66,36 +68,40 @@ function createApp() {
 
   async function handleEdit() {
     const task = list.selectedTask();
-    if (!task) return;
+    const idx = list.selectedIndex();
+    if (!task || idx < 0) return;
     modalOpen = true;
     const data = await editDialog.open(task);
     modalOpen = false;
     list.focus();
     if (!data) return;
-    replaceTask(updateTask(task, data));
+    replaceAt(idx, updateTask(task, data));
   }
 
   async function handleDelete() {
     const task = list.selectedTask();
-    if (!task) return;
+    const idx = list.selectedIndex();
+    if (!task || idx < 0) return;
     modalOpen = true;
     const ok = await confirmDialog.open(`Delete "${task.title}"?`);
     modalOpen = false;
     list.focus();
     if (!ok) return;
-    persist(tasks.filter((t) => t.id !== task.id));
+    persist(tasks.filter((_, i) => i !== idx));
   }
 
   function handleToggleStatus() {
     const task = list.selectedTask();
-    if (!task) return;
-    replaceTask(updateTask(task, { status: nextStatus(task.status) }));
+    const idx = list.selectedIndex();
+    if (!task || idx < 0) return;
+    replaceAt(idx, updateTask(task, { status: nextStatus(task.status) }));
   }
 
   function handleCyclePriority() {
     const task = list.selectedTask();
-    if (!task) return;
-    replaceTask(updateTask(task, { priority: nextPriority(task.priority) }));
+    const idx = list.selectedIndex();
+    if (!task || idx < 0) return;
+    replaceAt(idx, updateTask(task, { priority: nextPriority(task.priority) }));
   }
 
   function guard(fn) {

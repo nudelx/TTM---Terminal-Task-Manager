@@ -1,7 +1,5 @@
 'use strict';
 
-const crypto = require('crypto');
-
 const STATUSES = ['todo', 'doing', 'done'];
 const PRIORITIES = ['low', 'med', 'high'];
 
@@ -21,7 +19,6 @@ function createTask(input) {
   }
   const ts = nowIso();
   return {
-    id: crypto.randomUUID(),
     title,
     status: normalize(data.status, STATUSES, 'todo'),
     priority: normalize(data.priority, PRIORITIES, 'med'),
