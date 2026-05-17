@@ -1,0 +1,130 @@
+# ttm
+
+Terminal task manager with a lazygit-style UI. Plain Node.js (no TypeScript, no classes), single dependency (`neo-blessed`).
+
+## Install
+
+```sh
+npm install
+```
+
+Requires Node.js >= 18.
+
+## Run
+
+```sh
+node bin/ttm.js
+# or, after `npm link`:
+ttm
+```
+
+## Layout
+
+```
+┌─ Tasks ────────────┬─ Details ──────────────┐
+│ todo  H  Buy bread │ Title    : Buy bread   │
+│ doing M  Refactor  │ Status   : todo        │
+│ done  L  Pay bill  │ Priority : high        │
+│                    │ ...                    │
+└────────────────────┴────────────────────────┘
+ [a] add  [e] edit  [d] del  [space] status  [p] prio  [q] quit
+```
+
+## Default hotkeys
+
+| Key            | Action                                |
+| -------------- | ------------------------------------- |
+| `j` / `↓`      | Move down                             |
+| `k` / `↑`      | Move up                               |
+| `a`            | Add task                              |
+| `e` / `enter`  | Edit selected task                    |
+| `d` / `x`      | Delete selected task (with confirm)   |
+| `space`        | Cycle status (todo → doing → done)    |
+| `p`            | Cycle priority (low → med → high)     |
+| `q`            | Quit                                  |
+| `Ctrl-C`       | Force quit (works inside modals too)  |
+
+Inside the edit dialog:
+
+| Key      | Action                  |
+| -------- | ----------------------- |
+| `enter`  | Next field / submit     |
+| `Ctrl-S` | Save                    |
+| `esc`    | Cancel                  |
+
+## Configuration
+
+Built-in defaults live in `config/`. To override, drop JSON files in `~/.ttm/`:
+
+- `~/.ttm/theme.json` — colors and styles (deep-merged over `config/default-theme.json`)
+- `~/.ttm/keys.json` — action → keys mapping (deep-merged over `config/default-keys.json`)
+
+Example `~/.ttm/keys.json`:
+
+```json
+{
+  "delete": ["D"],
+  "cyclePriority": ["P", "."]
+}
+```
+
+Example `~/.ttm/theme.json`:
+
+```json
+{
+  "borderFocused": { "fg": "green" },
+  "selected": { "fg": "magenta", "bold": true },
+  "status": {
+    "doing": "cyan"
+  }
+}
+```
+
+## Storage
+
+Tasks are persisted to `~/.ttm/tasks.json` as a plain JSON array. Writes are atomic (`tasks.json.tmp` → rename).
+
+Task shape:
+
+```json
+{
+  "id": "uuid",
+  "title": "string",
+  "status": "todo | doing | done",
+  "priority": "low | med | high",
+  "notes": "string",
+  "createdAt": "ISO 8601",
+  "updatedAt": "ISO 8601"
+}
+```
+
+## Project layout
+
+```
+ttm/
+├── bin/ttm.js                    entry point
+├── config/
+│   ├── default-theme.json
+│   └── default-keys.json
+└── src/
+    ├── App.js                    createApp() — orchestrates everything
+    ├── config/
+    │   ├── ConfigLoader.js       load(name) merges defaults + user overrides
+    │   ├── Theme.js              createTheme()
+    │   └── Keybindings.js        createKeybindings()
+    ├── domain/Task.js            createTask, updateTask, nextStatus, nextPriority
+    ├── storage/JsonTaskStore.js  createJsonTaskStore()
+    └── ui/
+        ├── TaskListPanel.js
+        ├── DetailPanel.js
+        ├── HelpBar.js
+        ├── EditDialog.js
+        └── ConfirmDialog.js
+```
+
+Every module exports factory functions returning plain objects of methods. No classes, no `this`, no inheritance — state lives in closures.
+
+## License
+
+MIT
+# TTM---Terminal-Task-Manager
