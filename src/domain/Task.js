@@ -1,23 +1,23 @@
-'use strict';
+'use strict'
 
-const STATUSES = ['todo', 'doing', 'done'];
-const PRIORITIES = ['low', 'med', 'high'];
+const STATUSES = ['todo', 'doing', 'done']
+const PRIORITIES = ['low', 'med', 'high']
 
 function nowIso() {
-  return new Date().toISOString();
+  return new Date().toISOString()
 }
 
 function normalize(value, allowed, fallback) {
-  return allowed.includes(value) ? value : fallback;
+  return allowed.includes(value) ? value : fallback
 }
 
 function createTask(input) {
-  const data = input || {};
-  const title = typeof data.title === 'string' ? data.title.trim() : '';
+  const data = input || {}
+  const title = typeof data.title === 'string' ? data.title.trim() : ''
   if (!title) {
-    throw new Error('Task title is required');
+    throw new Error('Task title is required')
   }
-  const ts = nowIso();
+  const ts = nowIso()
   return {
     title,
     status: normalize(data.status, STATUSES, 'todo'),
@@ -25,38 +25,38 @@ function createTask(input) {
     notes: typeof data.notes === 'string' ? data.notes : '',
     createdAt: ts,
     updatedAt: ts,
-  };
+  }
 }
 
 function updateTask(task, patch) {
-  const next = { ...task };
+  const next = { ...task }
   if (typeof patch.title === 'string' && patch.title.trim()) {
-    next.title = patch.title.trim();
+    next.title = patch.title.trim()
   }
   if (patch.status !== undefined) {
-    next.status = normalize(patch.status, STATUSES, task.status);
+    next.status = normalize(patch.status, STATUSES, task.status)
   }
   if (patch.priority !== undefined) {
-    next.priority = normalize(patch.priority, PRIORITIES, task.priority);
+    next.priority = normalize(patch.priority, PRIORITIES, task.priority)
   }
   if (typeof patch.notes === 'string') {
-    next.notes = patch.notes;
+    next.notes = patch.notes
   }
-  next.updatedAt = nowIso();
-  return next;
+  next.updatedAt = nowIso()
+  return next
 }
 
 function cycle(values, current) {
-  const idx = values.indexOf(current);
-  return values[(idx + 1) % values.length];
+  const idx = values.indexOf(current)
+  return values[(idx + 1) % values.length]
 }
 
 function nextStatus(status) {
-  return cycle(STATUSES, status);
+  return cycle(STATUSES, status)
 }
 
 function nextPriority(priority) {
-  return cycle(PRIORITIES, priority);
+  return cycle(PRIORITIES, priority)
 }
 
 module.exports = {
@@ -66,4 +66,4 @@ module.exports = {
   updateTask,
   nextStatus,
   nextPriority,
-};
+}

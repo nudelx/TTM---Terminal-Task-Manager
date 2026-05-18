@@ -1,6 +1,6 @@
-'use strict';
+'use strict'
 
-const blessed = require('neo-blessed');
+const blessed = require('neo-blessed')
 
 const HINTS = [
   ['add', 'add'],
@@ -8,16 +8,15 @@ const HINTS = [
   ['delete', 'del'],
   ['toggleStatus', 'status'],
   ['cyclePriority', 'prio'],
+  ['refresh', 'refresh'],
   ['quit', 'quit'],
-];
+]
 
 function createHelpBar({ parent, theme, keys }) {
-  const text = HINTS
-    .map(([action, label]) => {
-      const k = keys.keysFor(action)[0] || '';
-      return `{cyan-fg}[${k}]{/} ${label}`;
-    })
-    .join('  ');
+  const text = HINTS.map(([action, label]) => {
+    const k = keys.keysFor(action)[0] || ''
+    return `{cyan-fg}[${k}]{/} ${label}`
+  }).join('  ')
 
   const box = blessed.box({
     parent,
@@ -28,9 +27,9 @@ function createHelpBar({ parent, theme, keys }) {
     tags: true,
     style: theme.get('help'),
     content: ` ${text}`,
-  });
+  })
 
-  return { box };
+  return { box }
 }
 
-module.exports = { createHelpBar };
+module.exports = { createHelpBar }

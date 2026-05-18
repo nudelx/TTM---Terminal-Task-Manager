@@ -32,25 +32,26 @@ ttm
 
 ## Default hotkeys
 
-| Key            | Action                                |
-| -------------- | ------------------------------------- |
-| `j` / `↓`      | Move down                             |
-| `k` / `↑`      | Move up                               |
-| `a`            | Add task                              |
-| `e` / `enter`  | Edit selected task                    |
-| `d` / `x`      | Delete selected task (with confirm)   |
-| `space`        | Cycle status (todo → doing → done)    |
-| `p`            | Cycle priority (low → med → high)     |
-| `q`            | Quit                                  |
-| `Ctrl-C`       | Force quit (works inside modals too)  |
+| Key           | Action                               |
+| ------------- | ------------------------------------ |
+| `j` / `↓`     | Move down                            |
+| `k` / `↑`     | Move up                              |
+| `a`           | Add task                             |
+| `e` / `enter` | Edit selected task                   |
+| `d` / `x`     | Delete selected task (with confirm)  |
+| `space`       | Cycle status (todo → doing → done)   |
+| `p`           | Cycle priority (low → med → high)    |
+| `r`           | Refresh — reload tasks from disk     |
+| `q`           | Quit                                 |
+| `Ctrl-C`      | Force quit (works inside modals too) |
 
 Inside the edit dialog:
 
-| Key      | Action                  |
-| -------- | ----------------------- |
-| `enter`  | Next field / submit     |
-| `Ctrl-S` | Save                    |
-| `esc`    | Cancel                  |
+| Key      | Action              |
+| -------- | ------------------- |
+| `enter`  | Next field / submit |
+| `Ctrl-S` | Save                |
+| `esc`    | Cancel              |
 
 ## Configuration
 
@@ -127,4 +128,5 @@ Every module exports factory functions returning plain objects of methods. No cl
 ## License
 
 MIT
+
 # TTM---Terminal-Task-Manager

@@ -1,121 +1,143 @@
-'use strict';
+'use strict'
 
-const path = require('path');
-const blessed = require('neo-blessed');
+const path = require('path')
+const blessed = require('neo-blessed')
 
-const ConfigLoader = require('./config/ConfigLoader');
-const { createTheme } = require('./config/Theme');
-const { createKeybindings } = require('./config/Keybindings');
-const { createJsonTaskStore } = require('./storage/JsonTaskStore');
-const T = require('./domain/tasksReducer');
+const ConfigLoader = require('./config/ConfigLoader')
+const { createTheme } = require('./config/Theme')
+const { createKeybindings } = require('./config/Keybindings')
+const { createJsonTaskStore } = require('./storage/JsonTaskStore')
+const T = require('./domain/tasksReducer')
 
-const { createTaskListPanel } = require('./ui/TaskListPanel');
-const { createDetailPanel } = require('./ui/DetailPanel');
-const { createHelpBar } = require('./ui/HelpBar');
-const { createEditDialog } = require('./ui/EditDialog');
-const { createConfirmDialog } = require('./ui/ConfirmDialog');
-const { installKeyTranslation } = require('./util/keyTranslation');
+const { createTaskListPanel } = require('./ui/TaskListPanel')
+const { createDetailPanel } = require('./ui/DetailPanel')
+const { createHelpBar } = require('./ui/HelpBar')
+const { createEditDialog } = require('./ui/EditDialog')
+const { createConfirmDialog } = require('./ui/ConfirmDialog')
+const { installKeyTranslation } = require('./util/keyTranslation')
 
 function createApp() {
-  const theme = createTheme(ConfigLoader.load('theme'));
-  const keys = createKeybindings(ConfigLoader.load('keys'));
-  const store = createJsonTaskStore(path.join(ConfigLoader.USER_CONFIG_DIR, 'tasks.json'));
+  const theme = createTheme(ConfigLoader.load('theme'))
+  const keys = createKeybindings(ConfigLoader.load('keys'))
+  const store = createJsonTaskStore(path.join(ConfigLoader.USER_CONFIG_DIR, 'tasks.json'))
 
-  let tasks = [];
-  let modalOpen = false;
+  let tasks = []
+  let modalOpen = false
 
   const screen = blessed.screen({
     smartCSR: true,
-    title: 'ttm — terminal task manager',
+    title: 'ttm  terminal task manager',
     fullUnicode: true,
-  });
-  installKeyTranslation(screen);
+  })
+  installKeyTranslation(screen)
 
-  const detail = createDetailPanel({ parent: screen, theme });
+  const detail = createDetailPanel({ parent: screen, theme })
   const list = createTaskListPanel({
     parent: screen,
     theme,
     onSelect: (task, number) => detail.show(task, number),
-  });
-  createHelpBar({ parent: screen, theme, keys });
+  })
+  createHelpBar({ parent: screen, theme, keys })
 
-  const editDialog = createEditDialog({ screen, theme, keys });
-  const confirmDialog = createConfirmDialog({ parent: screen, theme });
+  const editDialog = createEditDialog({ screen, theme, keys })
+  const confirmDialog = createConfirmDialog({ parent: screen, theme })
 
   function persist(nextTasks) {
-    tasks = nextTasks;
-    store.save(tasks);
-    list.setTasks(tasks);
+    tasks = nextTasks
+    store.save(tasks)
+    list.setTasks(tasks)
   }
 
   // Run an async modal flow with the modalOpen guard and focus-restore baked in.
   async function withModal(fn) {
-    modalOpen = true;
+    modalOpen = true
     try {
-      return await fn();
+      return await fn()
     } finally {
-      modalOpen = false;
-      list.focus();
+      modalOpen = false
+      list.focus()
     }
   }
 
   async function handleAdd() {
-    const data = await withModal(() => editDialog.open(null));
-    if (!data || !data.title.trim()) return;
-    persist(T.add(tasks, data));
+    const data = await withModal(() => editDialog.open(null))
+    if (!data || !data.title.trim()) return
+    persist(T.add(tasks, data))
   }
 
   async function handleEdit() {
-    const idx = list.selectedIndex();
-    const task = list.selectedTask();
-    if (!task) return;
-    const data = await withModal(() => editDialog.open(task));
-    if (!data) return;
-    persist(T.update(tasks, idx, data));
+    const idx = list.selectedIndex()
+    const task = list.selectedTask()
+    if (!task) return
+    const data = await withModal(() => editDialog.open(task))
+    if (!data) return
+    persist(T.update(tasks, idx, data))
   }
 
   async function handleDelete() {
-    const idx = list.selectedIndex();
-    const task = list.selectedTask();
-    if (!task) return;
-    const ok = await withModal(() => confirmDialog.open(`Delete "${task.title}"?`));
-    if (!ok) return;
-    persist(T.remove(tasks, idx));
+    const idx = list.selectedIndex()
+    const task = list.selectedTask()
+    if (!task) return
+    const ok = await withModal(() => confirmDialog.open(`Delete "${task.title}"?`))
+    if (!ok) return
+    persist(T.remove(tasks, idx))
   }
 
   function handleToggleStatus() {
-    persist(T.cycleStatus(tasks, list.selectedIndex()));
+    persist(T.cycleStatus(tasks, list.selectedIndex()))
   }
 
   function handleCyclePriority() {
-    persist(T.cyclePriority(tasks, list.selectedIndex()));
+    persist(T.cyclePriority(tasks, list.selectedIndex()))
+  }
+
+  function handleRefresh() {
+    tasks = store.load()
+    list.setTasks(tasks)
+    screen.render()
+  }
+
+  async function handleQuit() {
+    const ok = await withModal(() => confirmDialog.open('Quit ttm?'))
+    if (ok) process.exit(0)
   }
 
   function guard(fn) {
-    return () => { if (!modalOpen) fn(); };
+    return () => {
+      if (!modalOpen) fn()
+    }
   }
 
   function bindKeys() {
-    keys.bind(screen, 'forceQuit', () => process.exit(0));
-    keys.bind(screen, 'quit', guard(() => process.exit(0)));
-    keys.bind(screen, 'navigateDown', guard(() => list.moveDown()));
-    keys.bind(screen, 'navigateUp', guard(() => list.moveUp()));
-    keys.bind(screen, 'add', guard(handleAdd));
-    keys.bind(screen, 'edit', guard(handleEdit));
-    keys.bind(screen, 'delete', guard(handleDelete));
-    keys.bind(screen, 'toggleStatus', guard(handleToggleStatus));
-    keys.bind(screen, 'cyclePriority', guard(handleCyclePriority));
+    keys.bind(screen, 'forceQuit', () => process.exit(0))
+    keys.bind(screen, 'quit', guard(handleQuit))
+    keys.bind(
+      screen,
+      'navigateDown',
+      guard(() => list.moveDown()),
+    )
+    keys.bind(
+      screen,
+      'navigateUp',
+      guard(() => list.moveUp()),
+    )
+    keys.bind(screen, 'add', guard(handleAdd))
+    keys.bind(screen, 'edit', guard(handleEdit))
+    keys.bind(screen, 'delete', guard(handleDelete))
+    keys.bind(screen, 'toggleStatus', guard(handleToggleStatus))
+    keys.bind(screen, 'cyclePriority', guard(handleCyclePriority))
+    keys.bind(screen, 'refresh', guard(handleRefresh))
   }
 
   function start() {
-    bindKeys();
-    tasks = store.load();
-    list.setTasks(tasks);
-    list.focus();
-    screen.render();
+    bindKeys()
+    tasks = store.load()
+    list.setTasks(tasks)
+    list.focus()
+    screen.render()
   }
 
-  return { start };
+  return { start }
 }
 
-module.exports = createApp;
+module.exports = createApp
