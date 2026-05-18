@@ -12,7 +12,7 @@ function renderContent(task, number, theme) {
   return [
     `{bold}Number{/}   : ${number}`,
     `{bold}Title{/}    : ${task.title}`,
-    `{bold}Status{/}   : {${statusColor}-fg}${task.status}{/}`,
+    `{bold}Status{/}   : {${statusColor}-fg}${theme.statusIcon(task.status)} ${task.status}{/}`,
     `{bold}Priority{/} : {${prioColor}-fg}${task.priority}{/}`,
     `{bold}Created{/}  : ${formatDateWithRelative(task.createdAt)}`,
     `{bold}Updated{/}  : ${formatDateWithRelative(task.updatedAt)}`,
@@ -37,29 +37,8 @@ function createDetailPanel({ parent, theme }) {
     padding: { left: 1, right: 1, top: 1 },
   })
 
-  // blessed's wide-char (emoji) width accounting drifts by one cell after each
-  // wide char, so back-buffer cells past the emoji don't line up with the
-  // terminal cells they appear in. clearRegion isn't enough because draw()
-  // skips cells where back-buffer matches the prior frame (olines). Force a
-  // full re-emit of the panel's rows by invalidating olines for those rows.
-  function invalidatePriorFrame() {
-    const screen = box.screen
-    if (!screen.olines) return
-    const y = box.atop
-    const h = box.height
-    if (typeof y !== 'number' || typeof h !== 'number') return
-    for (let row = y; row < y + h; row++) {
-      const cells = screen.olines[row]
-      if (!cells) continue
-      for (let col = 0; col < cells.length; col++) {
-        cells[col] = [-1, ' ']
-      }
-    }
-  }
-
   function show(task, number) {
     box.setContent(renderContent(task, number, theme))
-    invalidatePriorFrame()
     box.screen.render()
   }
 

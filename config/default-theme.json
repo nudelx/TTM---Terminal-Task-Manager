@@ -10,6 +10,11 @@
     "doing": "magenta",
     "done": "green"
   },
+  "statusIcon": {
+    "todo": "○",
+    "doing": "●",
+    "done": "✓"
+  },
   "priority": {
     "low": "gray",
     "med": "white",

@@ -14,6 +14,7 @@ function createTheme(data) {
     get,
     statusColor: (status) => get(`status.${status}`, 'white'),
     priorityColor: (priority) => get(`priority.${priority}`, 'white'),
+    statusIcon: (status) => get(`statusIcon.${status}`, '?'),
   }
 }
 

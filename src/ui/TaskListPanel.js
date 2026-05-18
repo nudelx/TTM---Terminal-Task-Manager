@@ -2,22 +2,50 @@
 
 const blessed = require('neo-blessed')
 
-// Visible widths: num(3) + ' ' + prio(1) + '  ' + title(?) + ' ' + status(5)
-const FIXED_WIDTH = 3 + 1 + 1 + 2 + 1 + 5
+// Visible widths: num(3) + ' ' + prio(1) + '  ' + title(?) + ' ' + statusIcon(1) + ' '
+// trailing space keeps the icon off the rightmost column (neo-blessed clips there).
+const FIXED_WIDTH = 3 + 1 + 1 + 2 + 1 + 1 + 1
+
+// Terminal cell width for a code point — code points above the BMP (emojis like
+// 🤓 📖) render as two cells. padEnd uses string length, which counts the two
+// surrogate halves of an emoji as 2 but the emoji visually takes 2 cells too,
+// so naive padding drifts by 1 per emoji. Iterating by code point gives the
+// real cell count for right-alignment.
+function visibleWidth(str) {
+  let w = 0
+  for (const ch of String(str)) {
+    w += ch.codePointAt(0) > 0xffff ? 2 : 1
+  }
+  return w
+}
+
+function fitTitle(raw, maxWidth) {
+  let text = ''
+  let width = 0
+  for (const ch of raw) {
+    const chW = ch.codePointAt(0) > 0xffff ? 2 : 1
+    if (width + chW > maxWidth) {
+      return { text: text + '…', width: width + 1 }
+    }
+    text += ch
+    width += chW
+  }
+  return { text, width }
+}
 
 function formatRow(task, number, theme, innerWidth) {
   const statusColor = theme.statusColor(task.status)
   const prioColor = theme.priorityColor(task.priority)
   const num = String(number).padEnd(3)
   const prio = `{${prioColor}-fg}${task.priority[0].toUpperCase()}{/}`
-  const status = `{${statusColor}-fg}${task.status.padEnd(5)}{/}`
+  const status = `{${statusColor}-fg}${theme.statusIcon(task.status)}{/}`
 
   const titleMax = Math.max(1, innerWidth - FIXED_WIDTH)
   const raw = task.title || ''
-  const title =
-    raw.length > titleMax ? raw.slice(0, Math.max(0, titleMax - 1)) + '…' : raw.padEnd(titleMax)
+  const fit = visibleWidth(raw) > titleMax ? fitTitle(raw, titleMax - 1) : { text: raw, width: visibleWidth(raw) }
+  const padding = ' '.repeat(Math.max(0, titleMax - fit.width))
 
-  return `${num} ${prio}  ${title} ${status}`
+  return `${num} ${prio}  ${fit.text}${padding} ${status} `
 }
 
 function createTaskListPanel({ parent, theme, onSelect }) {
@@ -40,7 +68,7 @@ function createTaskListPanel({ parent, theme, onSelect }) {
     keys: false,
     mouse: true,
     tags: true,
-    padding: { left: 1, top: 1 },
+    padding: { left: 1, top: 1, right: 1 },
   })
 
   function emitSelected() {

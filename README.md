@@ -22,10 +22,10 @@ ttm
 
 ```
 ┌─ Tasks ────────────┬─ Details ──────────────┐
-│ 1   H  Buy bread   todo  │ Title    : Buy   │
-│ 2   M  Refactor    doing │ Status   : todo  │
-│ 3   L  Pay bill    done  │ Priority : high  │
-│                          │ ...              │
+│ 1   H  Buy bread ○ │ Title    : Buy bread   │
+│ 2   M  Refactor  ● │ Status   : ● doing     │
+│ 3   L  Pay bill  ✓ │ Priority : high        │
+│                    │ ...                    │
 └────────────────────┴────────────────────────┘
  [a] add  [e] edit  [d] del  [space] status  [p] prio  [q] quit
 ```
@@ -77,9 +77,16 @@ Example `~/.ttm/theme.json`:
   "selected": { "fg": "magenta", "bold": true },
   "status": {
     "doing": "cyan"
+  },
+  "statusIcon": {
+    "todo": "[ ]",
+    "doing": "...",
+    "done": "[x]"
   }
 }
 ```
+
+Status icons accept any string (`○`/`●`/`✓` are the defaults). Use the per-status color from `theme.status.*`.
 
 ## Storage
 
