@@ -14,6 +14,7 @@ function createTextEditor({
   width,
   height,
   theme,
+  singleLine = false,
   onSubmit,
   onExitUp,
   onExitDown,
@@ -72,7 +73,7 @@ function createTextEditor({
   function keyToTransition(ch, key) {
     const name = key.name;
     // Ctrl+Enter / Ctrl+J arrive as 'linefeed' after keyTranslation; newline.
-    if (name === 'linefeed') return (s) => E.insertNewline(s);
+    if (name === 'linefeed') return singleLine ? null : (s) => E.insertNewline(s);
     // Other ctrl combos and escape bubble to screen-level handlers.
     if (key.ctrl || name === 'escape') return null;
     // Plain Enter saves — caller does it via onSubmit, not via state.

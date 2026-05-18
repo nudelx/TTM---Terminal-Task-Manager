@@ -22,10 +22,10 @@ ttm
 
 ```
 ┌─ Tasks ────────────┬─ Details ──────────────┐
-│ todo  H  Buy bread │ Title    : Buy bread   │
-│ doing M  Refactor  │ Status   : todo        │
-│ done  L  Pay bill  │ Priority : high        │
-│                    │ ...                    │
+│ 1   H  Buy bread   todo  │ Title    : Buy   │
+│ 2   M  Refactor    doing │ Status   : todo  │
+│ 3   L  Pay bill    done  │ Priority : high  │
+│                          │ ...              │
 └────────────────────┴────────────────────────┘
  [a] add  [e] edit  [d] del  [space] status  [p] prio  [q] quit
 ```

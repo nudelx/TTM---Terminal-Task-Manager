@@ -18,6 +18,7 @@ function renderContent(task, number, theme) {
     `{bold}Updated{/}  : ${formatDateWithRelative(task.updatedAt)}`,
     '',
     '{bold}Notes{/}',
+    '',
     task.notes ? task.notes : '{gray-fg}(none){/}',
   ].join('\n');
 }

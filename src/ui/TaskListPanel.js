@@ -2,13 +2,23 @@
 
 const blessed = require('neo-blessed');
 
-function formatRow(task, number, theme) {
+// Visible widths: num(3) + ' ' + prio(1) + '  ' + title(?) + ' ' + status(5)
+const FIXED_WIDTH = 3 + 1 + 1 + 2 + 1 + 5;
+
+function formatRow(task, number, theme, innerWidth) {
   const statusColor = theme.statusColor(task.status);
   const prioColor = theme.priorityColor(task.priority);
   const num = String(number).padEnd(3);
-  const status = `{${statusColor}-fg}${task.status.padEnd(5)}{/}`;
   const prio = `{${prioColor}-fg}${task.priority[0].toUpperCase()}{/}`;
-  return `${num} ${status} ${prio}  ${task.title}`;
+  const status = `{${statusColor}-fg}${task.status.padEnd(5)}{/}`;
+
+  const titleMax = Math.max(1, innerWidth - FIXED_WIDTH);
+  const raw = task.title || '';
+  const title = raw.length > titleMax
+    ? raw.slice(0, Math.max(0, titleMax - 1)) + '…'
+    : raw.padEnd(titleMax);
+
+  return `${num} ${prio}  ${title} ${status}`;
 }
 
 function createTaskListPanel({ parent, theme, onSelect }) {
@@ -49,9 +59,20 @@ function createTaskListPanel({ parent, theme, onSelect }) {
     box.setLabel(` Tasks (${tasks.length}) `);
   }
 
+  function innerWidth() {
+    const w = typeof box.width === 'number' ? box.width : 0;
+    const iw = typeof box.iwidth === 'number' ? box.iwidth : 2;
+    return Math.max(1, w - iw);
+  }
+
+  function rerenderItems() {
+    const w = innerWidth();
+    box.setItems(tasks.map((t, i) => formatRow(t, i + 1, theme, w)));
+  }
+
   function setTasks(next) {
     tasks = Array.isArray(next) ? next : [];
-    box.setItems(tasks.map((t, i) => formatRow(t, i + 1, theme)));
+    rerenderItems();
     updateLabel();
     if (tasks.length === 0) {
       box.select(0);
@@ -62,6 +83,14 @@ function createTaskListPanel({ parent, theme, onSelect }) {
     emitSelected();
     box.screen.render();
   }
+
+  box.screen.on('resize', () => {
+    if (!tasks.length) return;
+    const sel = box.selected;
+    rerenderItems();
+    box.select(Math.min(sel, tasks.length - 1));
+    box.screen.render();
+  });
 
   return {
     box,

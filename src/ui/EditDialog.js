@@ -34,12 +34,6 @@ function createEditDialog({ screen, theme, keys }) {
     tags: true,
   });
 
-  const inputStyle = {
-    fg: 'white',
-    border: theme.get('border'),
-    focus: { border: theme.get('inputBorderFocus') },
-  };
-
   function makeLabel(top, text) {
     blessed.text({
       parent: container,
@@ -51,32 +45,9 @@ function createEditDialog({ screen, theme, keys }) {
     });
   }
 
-  function makeTextbox(top, width) {
-    const t = blessed.textbox({
-      parent: container,
-      top,
-      left: 0,
-      height: 3,
-      width,
-      inputOnFocus: false,
-      border: { type: 'line' },
-      style: inputStyle,
-    });
-    // Manually start readInput on focus so blessed doesn't rewindFocus on Enter
-    // (rewindFocus would fight our explicit field-advance chain).
-    t.on('focus', () => { if (!t._reading) t.readInput(); });
-    return t;
-  }
-
   makeLabel(0, 'Title');
-  const titleInput = makeTextbox(1, '100%-4');
-
   makeLabel(5, `Status (${STATUSES.join(' / ')})`);
-  const statusInput = makeTextbox(6, 22);
-
   makeLabel(10, `Priority (${PRIORITIES.join(' / ')})`);
-  const priorityInput = makeTextbox(11, 22);
-
   makeLabel(15, 'Notes  {gray-fg}(C-enter = newline, arrows = move){/}');
 
   const isOpen = () => !container.hidden;
@@ -90,16 +61,56 @@ function createEditDialog({ screen, theme, keys }) {
     if (resolve) resolve(result);
   }
 
+  const editors = {};
+
   function collect() {
     return {
-      title: titleInput.getValue() || '',
-      status: statusInput.getValue() || 'todo',
-      priority: priorityInput.getValue() || 'med',
-      notes: notesEditor.getValue() || '',
+      title: editors.title.getValue() || '',
+      status: editors.status.getValue() || 'todo',
+      priority: editors.priority.getValue() || 'med',
+      notes: editors.notes.getValue() || '',
     };
   }
 
-  const notesEditor = createTextEditor({
+  editors.title = createTextEditor({
+    parent: container,
+    top: 1,
+    left: 0,
+    width: '100%-4',
+    height: 3,
+    theme,
+    singleLine: true,
+    onSubmit: () => editors.status.focus(),
+    onExitDown: () => editors.status.focus(),
+  });
+
+  editors.status = createTextEditor({
+    parent: container,
+    top: 6,
+    left: 0,
+    width: 22,
+    height: 3,
+    theme,
+    singleLine: true,
+    onSubmit: () => editors.priority.focus(),
+    onExitUp: () => editors.title.focus(),
+    onExitDown: () => editors.priority.focus(),
+  });
+
+  editors.priority = createTextEditor({
+    parent: container,
+    top: 11,
+    left: 0,
+    width: 22,
+    height: 3,
+    theme,
+    singleLine: true,
+    onSubmit: () => editors.notes.focus(),
+    onExitUp: () => editors.status.focus(),
+    onExitDown: () => editors.notes.focus(),
+  });
+
+  editors.notes = createTextEditor({
     parent: container,
     top: 16,
     left: 0,
@@ -107,8 +118,8 @@ function createEditDialog({ screen, theme, keys }) {
     height: 5,
     theme,
     onSubmit: () => { if (isOpen()) close(collect()); },
-    onExitUp: () => priorityInput.focus(),
-    onExitDown: () => titleInput.focus(),
+    onExitUp: () => editors.priority.focus(),
+    onExitDown: () => editors.title.focus(),
   });
 
   blessed.text({
@@ -120,21 +131,11 @@ function createEditDialog({ screen, theme, keys }) {
     content: '{cyan-fg}[enter]{/} save / next   {cyan-fg}[C-enter]{/} newline   {cyan-fg}[tab]{/} field   {cyan-fg}[esc]{/} cancel',
   });
 
-  // Enter on single-line fields advances to the next; from priority, go to notes.
-  const singleLine = [titleInput, statusInput, priorityInput];
-  singleLine.forEach((el, i) => {
-    el.on('submit', () => {
-      const next = singleLine[i + 1];
-      if (next) next.focus();
-      else notesEditor.focus();
-    });
-  });
-
   const focusRing = createFocusRing([
-    titleInput,
-    statusInput,
-    priorityInput,
-    notesEditor.box,
+    editors.title.box,
+    editors.status.box,
+    editors.priority.box,
+    editors.notes.box,
   ]);
 
   unlockKeys(screen, keys, ['save', 'cancel', 'next', 'prev']);
@@ -145,13 +146,13 @@ function createEditDialog({ screen, theme, keys }) {
   keys.bind(screen, 'prev', () => { if (isOpen()) focusRing.prev(screen); });
 
   function open(task) {
-    titleInput.setValue(task ? task.title : '');
-    statusInput.setValue(task ? task.status : 'todo');
-    priorityInput.setValue(task ? task.priority : 'med');
-    notesEditor.setValue(task ? task.notes || '' : '');
+    editors.title.setValue(task ? task.title : '');
+    editors.status.setValue(task ? task.status : 'todo');
+    editors.priority.setValue(task ? task.priority : 'med');
+    editors.notes.setValue(task ? task.notes || '' : '');
     container.show();
     container.setFront();
-    titleInput.focus();
+    editors.title.focus();
     container.screen.render();
     return new Promise((resolve) => { pendingResolve = resolve; });
   }
