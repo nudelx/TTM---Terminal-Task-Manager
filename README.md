@@ -3,8 +3,8 @@
 Terminal task manager with a lazygit-style UI.
 
 <p align="center">
- <div> <img src="img/screenshot_main.png" alt="Main Dashboard" width="49%" /></div>
-<div>  <img src="img/screenshot_edit.png" alt="Edit Task Dialog" width="49%" /></div>
+ <div> <img src="img/screenshot_main.png" alt="Main Dashboard"  /></div>
+<div>  <img src="img/screenshot_edit.png" alt="Edit Task Dialog" /></div>
 </p>
 
 Built with **Node.js** — plain JavaScript, no TypeScript, no classes, single runtime dependency (`neo-blessed`). Tests run on Node's built-in `node:test` runner; formatting via Prettier.
