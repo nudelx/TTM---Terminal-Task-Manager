@@ -94,6 +94,8 @@ function createApp() {
   function handleRefresh() {
     tasks = store.load()
     list.setTasks(tasks)
+    list.refreshLayout()
+    detail.refreshLayout()
     screen.render()
   }
 
@@ -129,8 +131,25 @@ function createApp() {
     keys.bind(screen, 'refresh', guard(handleRefresh))
   }
 
+  // neo-blessed's own resize handler does alloc() + render() BEFORE notifying
+  // children (see node_modules/neo-blessed/lib/widgets/screen.js ~line 144).
+  // That means a screen.on('resize') listener fires AFTER blessed has already
+  // painted the new geometry with the OLD content — leaving the corrupted-
+  // looking overlay we saw. Prepending a listener to program's 'resize' lets
+  // our panel content refresh before blessed's auto-render, so the new frame
+  // paints the new state in a single pass.
+  function installResizeHandler() {
+    const program = screen.program
+    if (!program || typeof program.prependListener !== 'function') return
+    program.prependListener('resize', () => {
+      list.refreshLayout()
+      detail.refreshLayout()
+    })
+  }
+
   function start() {
     bindKeys()
+    installResizeHandler()
     tasks = store.load()
     list.setTasks(tasks)
     list.focus()

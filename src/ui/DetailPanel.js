@@ -37,12 +37,21 @@ function createDetailPanel({ parent, theme }) {
     padding: { left: 1, right: 1, top: 1 },
   })
 
+  let current = { task: null, number: null }
+
   function show(task, number) {
+    current = { task, number }
     box.setContent(renderContent(task, number, theme))
     box.screen.render()
   }
 
-  return { box, show }
+  // Re-flow content at the new geometry. Called by App before blessed renders
+  // on resize, so the new frame paints the new state directly.
+  function refreshLayout() {
+    box.setContent(renderContent(current.task, current.number, theme))
+  }
+
+  return { box, show, refreshLayout }
 }
 
 module.exports = { createDetailPanel }

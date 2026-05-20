@@ -112,17 +112,19 @@ function createTaskListPanel({ parent, theme, onSelect }) {
     box.screen.render()
   }
 
-  box.screen.on('resize', () => {
-    if (!tasks.length) return
-    const sel = box.selected
+  // Recompute row widths for the current box geometry. Called by App
+  // before blessed renders on resize, so the new frame uses the new sizes.
+  function refreshLayout() {
+    const sel = box.selected || 0
     rerenderItems()
-    box.select(Math.min(sel, tasks.length - 1))
-    box.screen.render()
-  })
+    if (tasks.length) box.select(Math.min(sel, tasks.length - 1))
+    updateLabel()
+  }
 
   return {
     box,
     setTasks,
+    refreshLayout,
     selectedTask: () => tasks[box.selected] || null,
     selectedIndex: () => (tasks.length === 0 ? -1 : box.selected),
     selectedNumber: () => (tasks.length === 0 ? null : box.selected + 1),
