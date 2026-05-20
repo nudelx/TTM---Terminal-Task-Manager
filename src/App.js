@@ -8,6 +8,7 @@ const { createTheme } = require('./config/Theme')
 const { createKeybindings } = require('./config/Keybindings')
 const { createJsonTaskStore } = require('./storage/JsonTaskStore')
 const T = require('./domain/tasksReducer')
+const { VERSION } = require('./version')
 
 const { createTaskListPanel } = require('./ui/TaskListPanel')
 const { createDetailPanel } = require('./ui/DetailPanel')
@@ -26,7 +27,7 @@ function createApp() {
 
   const screen = blessed.screen({
     smartCSR: true,
-    title: 'ttm  terminal task manager',
+    title: `ttm ${VERSION}  terminal task manager`,
     fullUnicode: true,
   })
   installKeyTranslation(screen)

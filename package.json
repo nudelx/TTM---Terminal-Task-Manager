@@ -1,6 +1,6 @@
 {
   "name": "ttm",
-  "version": "0.1.0",
+  "version": "0.0.1-b",
   "description": "Terminal task manager with a lazygit-style UI",
   "bin": {
     "ttm": "./bin/ttm.js"
@@ -8,6 +8,7 @@
   "main": "src/App.js",
   "scripts": {
     "start": "node bin/ttm.js",
+    "version:show": "node bin/ttm.js --version",
     "test": "node --test tests/*.test.js",
     "fix": "prettier --write .",
     "fix:check": "prettier --check ."

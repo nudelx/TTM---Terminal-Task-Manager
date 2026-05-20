@@ -20,6 +20,21 @@ node bin/ttm.js
 ttm
 ```
 
+## Version
+
+Current version: **0.0.1b** (pre-release).
+
+Check the installed version from the CLI:
+
+```sh
+ttm --version       # after `npm link`
+node bin/ttm.js -v  # without linking
+npm run version:show
+# → ttm 0.0.1b
+```
+
+The version is stored in `package.json` (as the semver-valid `0.0.1-b`) and re-exported in display form from `src/version.js` — bump it in one place and the CLI flag, screen title, and `npm` metadata all stay in sync.
+
 ## Layout
 
 ```
