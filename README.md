@@ -1,6 +1,8 @@
 # ttm - Terminal Task Manager
 
-Terminal task manager with a lazygit-style UI. Plain Node.js (no TypeScript, no classes), single dependency (`neo-blessed`).
+Terminal task manager with a lazygit-style UI.
+
+Built with **Node.js** — plain JavaScript, no TypeScript, no classes, single runtime dependency (`neo-blessed`). Tests run on Node's built-in `node:test` runner; formatting via Prettier.
 
 ## Install
 
@@ -135,5 +137,3 @@ Every module exports factory functions returning plain objects of methods. No cl
 ## License
 
 MIT
-
-# TTM---Terminal-Task-Manager
